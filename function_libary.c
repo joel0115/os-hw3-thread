@@ -4,8 +4,8 @@ void Function1(void)
 {
     while(1)
     {
-        OS2021_ThreadCreate("random_1","Function2",2,1);
-        OS2021_ThreadCreate("random_2","Function2",2,1);
+        OS2021_ThreadCreate("random_1","Function2","L",1);
+        OS2021_ThreadCreate("random_2","Function2","L",1);
         OS2021_ThreadWaitEvent(3);
         OS2021_ThreadCancel("random_1");
         OS2021_ThreadCancel("random_2");
