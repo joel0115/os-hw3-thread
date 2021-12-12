@@ -3,10 +3,96 @@
 struct itimerval Signaltimer;
 ucontext_t dispatch_context;
 ucontext_t timer_context;
+Queue *ready_queue[3];
+int tid;
 
+/* required api */
 int OS2021_ThreadCreate(char *job_name, char *p_function, char* priority, int cancel_mode)
 {
-    return -1;
+    thread_t *newThread = (thread_t*)malloc(sizeof(thread_t));
+    //for pushing to github
+    free(newThread);
+    // cppcheck-suppress memleak
+    if(!newThread)
+    {
+        printf("[ERROR] FAIL TO ALLOCATE MEMORY FOR THREAD!\n");
+    }
+
+    newThread -> tid = tid;
+
+    newThread -> name = (char*)malloc(sizeof(job_name));
+    newThread -> entry_function = (char*)malloc(sizeof(p_function));
+    if(!newThread -> name || !newThread -> entry_function)
+    {
+        printf("[ERROR] FAIL TO ALLOCATE MEMORY FOR THREAD!\n");
+    }
+    /* basic thread info */
+    strcpy(newThread -> name, job_name);
+    strcpy(newThread -> entry_function, p_function);
+    strcpy(newThread -> base_priority, priority);
+    strcpy(newThread -> current_priority, priority);
+    newThread -> cancel_mode = cancel_mode;
+    newThread -> next = NULL;
+    strcpy(newThread -> state, "READY");
+    newThread -> ready_time = 0;
+    newThread -> waiting_time = 0;
+
+
+    /* construct context */
+    getcontext(&(newThread -> context));
+    newThread -> context.uc_stack.ss_sp = malloc(STACK_SIZE);
+    newThread -> context.uc_stack.ss_size = STACK_SIZE;
+    newThread -> context.uc_stack.ss_flags = 0;
+
+    void (*func)(void) = NULL;
+    if(!strcmp(newThread -> entry_function, "Function1"))
+    {
+        func = Function1;
+    }
+    else if(!strcmp(newThread -> entry_function, "Function2"))
+    {
+        func = Function1;
+    }
+    else if(!strcmp(newThread -> entry_function, "Function3"))
+    {
+        func = Function3;
+    }
+    else if(!strcmp(newThread -> entry_function, "Function4"))
+    {
+        func = Function4;
+    }
+    else if(!strcmp(newThread -> entry_function, "Function5"))
+    {
+        func = Function5;
+    }
+    else if(!strcmp(newThread -> entry_function, "ResourceReclaim"))
+    {
+        func = ResourceReclaim;
+    }
+    else
+    {
+        return -1;
+    }
+    makecontext(&(newThread -> context),func,0);
+
+    /* push to corresponding level queue and set the time quantum */
+    if(!strcmp(priority, "H"))
+    {
+        newThread -> TQ = 100;
+        enqueue(ready_queue[0], newThread);
+    }
+    else if(!strcmp(priority, "M"))
+    {
+        newThread -> TQ = 200;
+        enqueue(ready_queue[1], newThread);
+    }
+    else if(!strcmp(priority, "L"))
+    {
+        newThread -> TQ = 300;
+        enqueue(ready_queue[2], newThread);
+    }
+
+    return tid;
 }
 
 void OS2021_ThreadCancel(char *job_name)
@@ -64,8 +150,93 @@ void Dispatcher()
 
 }
 
+/* signal hanlders */
+void print_threads_info(int signal)
+{
+
+    printf("\n");
+    for(int i = 0; i<88; i++)
+    {
+        printf("*");
+    }
+    printf("\n");
+
+    printf("%-8s%-8s%-16s%-8s%-16s%-16s%-8s%-8s*\n", "*", "TID", "Name", "State", "B_Priority", "C_Priority", "Q_Time", "W_Time");
+    for(int i = 0; i<3; i++)
+    {
+        if(ready_queue[i] -> front == NULL)
+        {
+            continue;
+        }
+        for(thread_t *cur = ready_queue[i] -> front; cur != NULL; cur = cur -> next)
+        {
+            printf("%-8s%-8d%-16s%-8s%-16s%-16s%-8lld%-8lld*\n", "*", cur -> tid,  cur -> name, cur -> state, cur -> base_priority, cur -> current_priority, cur -> ready_time, cur -> waiting_time);
+        }
+    }
+    for(int i = 0; i<88; i++)
+    {
+        printf("*");
+    }
+    printf("\n");
+}
+
+
+/* queue operations */
+Queue* newQueue(char* priority)
+{
+    Queue* q = (Queue*)malloc(sizeof(Queue));
+    if(!q)
+    {
+        printf("[ERROR] FAIL TO ALLOCATE MEMORY FOR QUEUE!\n");
+    }
+    q -> front = q -> rear = NULL;
+    strcpy(q -> priority, priority);
+    return q;
+}
+
+void enqueue(Queue *q, thread_t *thread)
+{
+    /* first thread */
+    if(q -> rear == NULL)
+    {
+        q -> front = q -> rear = thread;
+        return;
+    }
+    else
+    {
+        q -> rear -> next = thread;
+        q -> rear = thread;
+        return;
+    }
+}
+
+void dequeue(Queue *q)
+{
+    /* empty queue */
+    if(q -> front == NULL)
+    {
+        return;
+    }
+    else
+    {
+        thread_t *to_delete = q -> front;
+        q -> front = q -> front -> next;
+
+        /* when poping the last thread */
+        if(q -> front == NULL)
+        {
+            q -> rear = NULL;
+        }
+        free(to_delete);
+    }
+}
+
 void StartSchedulingSimulation()
 {
+    ready_queue[0] = newQueue("H");
+    ready_queue[1] = newQueue("M");
+    ready_queue[2] = newQueue("L");
+
     /*Parse json file*/
     FILE* json_file = fopen("init_threads.json", "rb");
     char* json_str = NULL;
@@ -120,8 +291,16 @@ void StartSchedulingSimulation()
         {
             printf("[ERROR] There's no function called %s\n", entry_function -> valuestring);
         }
+        else
+        {
+            tid++;
+        }
         // printf("name: %s, entry function: %s, priority: %s, cancel_mode: %s\n", name -> valuestring, entry_function -> valuestring, priority -> valuestring, cancel_mode -> valuestring);
     }
+
+    /* set signal handler*/
+    signal(SIGTSTP, print_threads_info);
+    // while(1);
 
     /*Set Timer*/
     Signaltimer.it_interval.tv_usec = 0;

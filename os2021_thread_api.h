@@ -30,6 +30,7 @@ void ResetTimer();
 void Dispatcher();
 void StartSchedulingSimulation();
 
+void print_threads_info(int);
 
 typedef struct thread_t
 {
@@ -37,18 +38,30 @@ typedef struct thread_t
 
     char* name;
     char* entry_function;
-    char* base_priority;
+    char base_priority[100];
     int cancel_mode;
 
     struct thread_t *next;
 
     int TQ; //in ms
-    char* state;
-    char* current_priority;
+    char state[200];
+    char current_priority[100];
     long long int ready_time;
     long long int waiting_time;
     ucontext_t context;
 
 } thread_t;
 
+
+typedef struct Queue
+{
+    thread_t *front;
+    thread_t *rear;
+    char priority[100];
+} Queue;
+
+thread_t* newThread(int tid, char* name, char* entry_function, char* base_priority, int cancel_mode);
+Queue* newQueue(char*);
+void enqueue(Queue*, thread_t*);
+void dequeue(Queue*);
 #endif
