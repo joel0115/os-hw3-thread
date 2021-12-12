@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
+#include "cJSON.h"
 #include "function_libary.h"
 
 
@@ -28,5 +29,26 @@ void CreateContext(ucontext_t *, ucontext_t *, void *);
 void ResetTimer();
 void Dispatcher();
 void StartSchedulingSimulation();
+
+
+typedef struct thread_t
+{
+    int tid;
+
+    char* name;
+    char* entry_function;
+    char* base_priority;
+    int cancel_mode;
+
+    struct thread_t *next;
+
+    int TQ; //in ms
+    char* state;
+    char* current_priority;
+    long long int ready_time;
+    long long int waiting_time;
+    ucontext_t context;
+
+} thread_t;
 
 #endif
