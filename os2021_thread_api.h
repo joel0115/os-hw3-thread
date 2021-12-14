@@ -27,10 +27,12 @@ void OS2021_TestCancel();
 
 void CreateContext(ucontext_t *, ucontext_t *, void *);
 void ResetTimer();
+void StartTimer();
 void Dispatcher();
 void StartSchedulingSimulation();
 
 void print_threads_info(int);
+void timer_handler(int);
 
 typedef struct thread_t
 {
@@ -50,6 +52,10 @@ typedef struct thread_t
     long long int waiting_time;
     ucontext_t context;
 
+    int waiting_for;
+    long long int should_wait_time;
+
+    int should_canceled;
 } thread_t;
 
 
@@ -60,8 +66,9 @@ typedef struct Queue
     char priority[100];
 } Queue;
 
-thread_t* newThread(int tid, char* name, char* entry_function, char* base_priority, int cancel_mode);
+thread_t* CreatenewThread();
 Queue* newQueue(char*);
 void enqueue(Queue*, thread_t*);
 void dequeue(Queue*);
+void clear_queue(Queue*);
 #endif
