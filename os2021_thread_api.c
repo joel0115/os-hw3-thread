@@ -97,6 +97,7 @@ int OS2021_ThreadCreate(char *job_name, char *p_function, char* priority, int ca
 void OS2021_ThreadCancel(char *job_name)
 {
     thread_t *to_cancel = NULL;
+    thread_t * running_tmp = running;
     Queue *q;
     int flag = 0;
     for(int i = 0; i<3; i++)
@@ -110,9 +111,10 @@ void OS2021_ThreadCancel(char *job_name)
                 flag = 1;
                 break;
             }
-            if(flag)
-                break;
+
         }
+        if(flag)
+            break;
     }
 
 
@@ -156,6 +158,10 @@ void OS2021_ThreadCancel(char *job_name)
         }
     }
 
+    if(to_cancel == NULL)
+    {
+        return;
+    }
     if(to_cancel -> cancel_mode == 0)
     {
         strcpy(to_cancel -> state, "TERMINATED");
@@ -170,12 +176,28 @@ void OS2021_ThreadCancel(char *job_name)
             }
             else
             {
-                prev -> next = iter -> next;
+                if(prev != NULL)
+                {
+                    prev -> next = iter -> next;
+                }
+                else
+                {
+                    q -> front = iter -> next;
+                }
                 iter -> next = NULL;
                 break;
             }
         }
-        enqueue(terminated_queue, to_cancel);
+        if(running_tmp == to_cancel)
+        {
+            enqueue(terminated_queue, to_cancel);
+            swapcontext(&(running_tmp->context), &dispatch_context);
+        }
+        else
+        {
+            enqueue(terminated_queue, to_cancel);
+        }
+
     }
     else
     {
@@ -596,6 +618,7 @@ void clear_queue(Queue* q)
         free(prev -> entry_function);
         free(prev);
     }
+    q -> rear = NULL;
 }
 
 void release_queue(Queue *q)
