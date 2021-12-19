@@ -184,6 +184,10 @@ void OS2021_ThreadCancel(char *job_name)
                 {
                     q -> front = iter -> next;
                 }
+                if(iter == q -> rear)
+                {
+                    q -> rear = prev;
+                }
                 iter -> next = NULL;
                 break;
             }
@@ -266,6 +270,7 @@ void OS2021_ThreadSetEvent(int event_id)
                     iter -> TQ = 300;
                     enqueue(ready_queue[2], iter);
                 }
+                flag = 1;
             }
 
         }
@@ -491,6 +496,10 @@ void timer_handler(int signal)
             {
                 prev -> next = cur -> next;
                 cur -> next = NULL;
+                if(cur == waiting_for_time_queue -> rear)
+                {
+                    waiting_for_time_queue -> rear = prev;
+                }
             }
             strcpy(cur -> state, "READY");
             if(!strcmp(cur -> current_priority, "H"))
